@@ -1,4 +1,4 @@
-### Calibration Screen
+### Calibration Slide
 Plain text will be at most this small.
 
 ```scala 3
@@ -89,6 +89,8 @@ Make sure to talk about experience with library. Also mention that library
 authors use typeclasses with the intent of making integration easy for
 other developers.
 
+---
+_Typeclasses should never be subject to product requirements!_
 ---
 
 ### Where are typeclasses found?
@@ -204,7 +206,8 @@ object Extractor {
 }
 ```
 
-Note: Mention that simple cases like AnyVal are usually all written by library authors when you come on them.
+Note: Mention that simple cases like AnyVal are usually all written by library authors when you come on them,
+as well as any typeclasses, like you may have seen in Katrix's talk.
 
 ---
 
