@@ -35,7 +35,6 @@ object Extractor {
   given doubleListExtractor: Extractor[List[Double]] =
     (config, path) => config.getDoubleList(path).asScala.toList.map(_.toDouble)
   given booleanListExtractor: Extractor[List[Boolean]] =
-
     (config, path) => config.getBooleanList(path).asScala.toList.map(_.booleanValue)
 
   given listExtractor[T](using ex: Extractor[T]): Extractor[List[T]] =

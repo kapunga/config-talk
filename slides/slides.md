@@ -4,8 +4,7 @@ Plain text will be at most this small.
 ```scala 3
 // Code will look like this
 
-@main def hello: Unit =
-  println("Hello world!")
+@main def hello: Unit = println("Hello world!")
 ```
 
 If you are having trouble seeing, make your window bigger,
@@ -22,11 +21,11 @@ Paul (Thor) Thordarson
 
 ### Who Am I
 
-* Ran into Scala about 8 years ago
-* Picked up Scala immediately fell in love
-* Jumped to a team starting to use Spark
+* Ran into Scala about 8 years ago and fell in love
+* Joined a new team at work using Scala with Spark
 * Started writing support Slack bots in Akka
 * Took a job at a startup using FP Scala
+* Recently started contributing to core Scala
 
 ---
 
@@ -320,6 +319,25 @@ extension (config: Config)
 
 ---
 
+### Another Higher-kinded Type: List
+
+```scala 3
+  given stringListExtractor: Extractor[List[String]] =
+    (config, path) => config.getStringList(path).asScala.toList
+  given intListExtractor: Extractor[List[Int]] =
+    (config, path) => config.getIntList(path).asScala.toList.map(_.toInt)
+  given longListExtractor: Extractor[List[Long]] =
+    (config, path) => config.getLongList(path).asScala.toList.map(_.toLong)
+  given floatListExtractor: Extractor[List[Float]] =
+    (config, path) => config.getNumberList(path).asScala.toList.map(_.floatValue().toFloat)
+  given doubleListExtractor: Extractor[List[Double]] =
+    (config, path) => config.getDoubleList(path).asScala.toList.map(_.toDouble)
+  given booleanListExtractor: Extractor[List[Boolean]] =
+    (config, path) => config.getBooleanList(path).asScala.toList.map(_.booleanValue)
+```
+
+---
+
 ### Another Example: Maps
 
 ```scala 3
@@ -341,6 +359,12 @@ val configMap = config.get[Map[String, RestConfig]](path)
 ```
 ---
 
+### Thanks
+* Justin du Coeur - For convincing me that I had something worthwhile to talk about
+* Mark Canlas - For helping me refine my final talk
+
+### Additional Resources
+* https://www.lihaoyi.com/post/ImplicitDesignPatternsinScala.html - A great article on implicits including Typeclasses
 
 ---
 
