@@ -5,24 +5,45 @@ Paul (Thor) Thordarson
 
 ---
 
-### Assumptions
+### Who Am I
+
+---
+
+### Target Audience
 
 * You understand how implicits work.
+* Perhaps seen typeclasses and have a vague understanding, but are unsure where/how you might go about making your own.
 
-Note: speaker notes FTW!
-Note: What are we going to do with all these speaker notes?
+Note: The code in this talk is what finally made implicits click for me
 
 ---
 
 ### What's a Typeclass?
 
+* Functional Programming equivalent of an interface for supporting _ad-hoc polymorphism_.
+* Supports common behavior between unrelated types:
+  * Comparison for equality or sorting.
+  * Encoding/decoding instances into JSON.
+  * Composing instances to create a new instance.
+* Lets you extend a classes behaviour without extending the class itself.
+
+Note: You don't need to control the source code of the class being extended. Useful for working with legacy or Java libraries.
+
 ---
 
-### Where are typeclasses used?
+### Where are typeclasses found?
+
+* Standard Library - Traits like `Ordering` for sorting
+* Spark - Traits like the _Dataset_ `Encoder`
+* Typelevel ecosystem
+  * Convenience traits like cats `Show`
+  * Functional Programming traits like cats `Monoid`, `Applicative`, & `Functor`
+  * Effect types like cats-effect `Async` & `Concurrent`
 
 ---
 
 ### Our Java Config Library
+Lightbend (formerly Typesafe) Config
 
 _What We Have - Java API_
 <!-- .element: class="fragment" data-fragment-index="1" -->
@@ -31,7 +52,7 @@ _What We Have - Java API_
 public interface Config {
     boolean getBoolean(String path);
     double getDouble(String path);
-    List<String> getIntList(String path);
+    List<Integer> getIntList(String path);
     . . .
 }
 ```
@@ -82,8 +103,6 @@ object Extractor {
     (config, path) => config.getInt(path)
   given Extractor[Long] =
     (config, path) => config.getLong(path)
-  given Extractor[Float] =
-    (config, path) => config.getNumber(path).floatValue()
   given Extractor[Double] =
     (config, path) => config.getDouble(path)
   given Extractor[Boolean] =
@@ -123,9 +142,10 @@ case class RestConfig(
 
 object RestConfig {
   given Extractor[RestConfig] = (config, path) => {
-    val host = config.get[String]("host")
-    val port = config.get[Int]("port")
-    val useHttps = config.get[Boolean]("use-https")
+    val c = config.getConfig(path)
+    val host = c.get[String]("host")
+    val port = c.get[Int]("port")
+    val useHttps = c.get[Boolean]("use-https")
 
     RestConfig(host, port, useHttps)
   }
@@ -137,15 +157,23 @@ object RestConfig {
 ### This Allows
 
 ```
-rest-config {
+service-a {
   host = "somerestapi.com"
   port = 9000
   use-https = true
 }
+service-b {
+  host = "anotherrestapi.com"
+  port = 7777
+  use-https = false
+}
 ```
 
 ```scala 3
-val rc: RestConfig = config.get[RestConfig]("rest-config")
+val serviceAConf: RestConfig =
+  config.get[RestConfig]("service-a")
+val serviceBConf: RestConfig =
+  config.get[RestConfig]("service-b")
 ```
 
 ---
@@ -175,17 +203,17 @@ val port: Option[Int] = config.get[Option[Int]]("port")
 
 ---
 
-### The Solution: Nesting Givens
+### The Solution: Givens Depending on other Givens
 
 The Option Typeclass
 <!-- .element: class="fragment" data-fragment-index="1" -->
 
 ```scala 3
 object Extractor {
-  given optExtractor[T: Extractor]: Extractor[Option[T]] =
+  given optExtractor[T](
+      using ex: Extractor[T]): Extractor[Option[T]] =
     (config, path) => {
       if (config.hasPath(path)) {
-        val ex = implicitly[Extractor[T]]
         Some(ex.extract(config, path))
       } else {
         None
@@ -211,9 +239,8 @@ object Extractor {
 
 ```scala 3
 extension (config: Config)
-  def get[T](path: String)(using ex: Extractor[T]): T =
-    ex.extract(config, path)
-
+  ...
+  
   def getOrElse[T: Extractor](path: String, default: T): T =
     get[Option[T]](path).getOrElse(default)
 ```

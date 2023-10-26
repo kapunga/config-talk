@@ -7,6 +7,6 @@ $ npm install -g reveal-md
 ```
 Next, run the reveal server:
 ```bash
-$ reveal-md slides/slides.md
+$ 
 ```
 Get speaker view by hitting 's' from the launched page.
