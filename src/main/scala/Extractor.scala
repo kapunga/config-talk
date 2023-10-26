@@ -1,12 +1,16 @@
-import com.typesafe.config.Config
+import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
+
 import scala.jdk.CollectionConverters.given
 
+@scala.annotation.implicitNotFound("Missing given Extractor for type ${T}, make sure you define one!")
 trait Extractor[T] {
   def extract(config: Config, path: String): T
 }
 
 object Extractor {
-  given Extractor[String] = (config, path) => config.getString(path)
+  given Extractor[String] with
+    def extract(config: Config, path: String): String = config.getString(path)
+
   given Extractor[Int] = (config, path) => config.getInt(path)
   given Extractor[Long] = (config, path) => config.getLong(path)
   given Extractor[Float] = (config, path) => config.getNumber(path).floatValue()
@@ -31,10 +35,15 @@ object Extractor {
   given doubleListExtractor: Extractor[List[Double]] =
     (config, path) => config.getDoubleList(path).asScala.toList.map(_.toDouble)
   given booleanListExtractor: Extractor[List[Boolean]] =
+
     (config, path) => config.getBooleanList(path).asScala.toList.map(_.booleanValue)
 
   given listExtractor[T](using ex: Extractor[T]): Extractor[List[T]] =
-    (config, path) => config.getConfigList(path).asScala.toList.map(c => ex.extract(c, path))
+    (config, path) => {
+      def wrap(conf: Config): Config =
+        ConfigValueFactory.fromMap(Map("key" -> conf.root().unwrapped()).asJava).toConfig
+      config.getConfigList(path).asScala.toList.map(c => ex.extract(wrap(c), "key"))
+    }
   given setExtractor[T](using ex: Extractor[List[T]]): Extractor[Set[T]] =
     (config, path) => ex.extract(config, path).toSet
 
@@ -47,12 +56,8 @@ object Extractor {
 }
 
 extension (config: Config)
-  def get[T](path: String)(using ex: Extractor[T]): Either[Throwable, T] =
-    try {
-      Right(ex.extract(config, path))
-    } catch {
-      case throwable: Throwable => Left(throwable)
-    }
+  def get[T](path: String)(using ex: Extractor[T]): T =
+    ex.extract(config, path)
 
   def getOrElse[T](path: String, default: T)(using ex: Extractor[Option[T]]): T =
     ex.extract(config, path).getOrElse(default)

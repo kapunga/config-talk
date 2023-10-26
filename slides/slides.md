@@ -1,3 +1,18 @@
+### Calibration Screen
+Plain text will be at most this small.
+
+```scala 3
+// Code will look like this
+
+@main def hello: Unit =
+  println("Hello world!")
+```
+
+If you are having trouble seeing, make your window bigger,
+or let me know if I should switch to a higher contrast theme.
+
+---
+
 ### Practical Typeclass Usage
 #### Improving Java Library Ergonomics
 
@@ -7,12 +22,20 @@ Paul (Thor) Thordarson
 
 ### Who Am I
 
+* Ran into Scala about 8 years ago
+* Picked up Scala immediately fell in love
+* Jumped to a team starting to use Spark
+* Started writing support Slack bots in Akka
+* Took a job at a startup using FP Scala
+
 ---
 
-### Target Audience
+### About this talk
 
-* You understand how implicits work.
-* Perhaps seen typeclasses and have a vague understanding, but are unsure where/how you might go about making your own.
+* Aimed at relative newcomers to Scala.
+* Will be given in Scala 3
+* Assumes you mostly know how `given` works
+* Talk covers what finally made Typeclasses click for me, hopefully it can help you to!
 
 Note: The code in this talk is what finally made implicits click for me
 
@@ -25,16 +48,38 @@ Note: The code in this talk is what finally made implicits click for me
   * Comparison for equality or sorting.
   * Encoding/decoding instances into JSON.
   * Composing instances to create a new instance.
-* Lets you extend a classes behaviour without extending the class itself.
+* Lets you extend a types behaviour without extending the type itself.
 
 Note: You don't need to control the source code of the class being extended. Useful for working with legacy or Java libraries.
 
 ---
 
+### Representing Typeclasses
+
+* Typeclasses are borrowed from Haskell
+* Scala doesn't have first class support for typeclasses
+* Typeclasses are encoded in traits
+  * All typeclasses are traits
+  * Not all traits are typeclasses
+
+---
+
+### Typeclasses should be canonical
+
+* Typeclasses should be canonical
+* Should define something that is always true
+* Typeclasses are generally defined in libraries
+* Should rarely if ever define business logic
+
+Note: Does have a place in enterprise code, it's usually found in
+your nuts and bolts libraries and glue code
+
+---
+
 ### Where are typeclasses found?
 
-* Standard Library - Traits like `Ordering` for sorting
-* Spark - Traits like the _Dataset_ `Encoder`
+* Standard Library - Traits like `Ordering[T]` for sorting
+* Spark - Traits like the _Dataset_ `Encoder[T]`
 * Typelevel ecosystem
   * Convenience traits like cats `Show`
   * Functional Programming traits like cats `Monoid`, `Applicative`, & `Functor`
@@ -68,6 +113,8 @@ trait Config {
 ```
 <!-- .element: class="fragment" data-fragment-index="2" -->
 
+Note: We'd like to ergonomics that are more idiomatically Scala, something that is generic, but also with type safety.
+
 ---
 ### Building our API
 
@@ -75,6 +122,7 @@ The Typeclass
 <!-- .element: class="fragment" data-fragment-index="1" -->
 
 ```scala 3
+@implicitNotFound("Missing given Extractor for type ${T}")
 trait Extractor[T] {
   def extract(config: Config, path: String): T
 }
@@ -90,6 +138,31 @@ extension (config: Config)
     ex.extract(config, path)
 ```
 <!-- .element: class="fragment" data-fragment-index="2" -->
+
+Note: Important to note that our extension uses our typeclass,
+but is not an essential part of the typeclass itself.
+
+---
+
+### The First Typeclass
+
+```scala 3
+object Extractor {
+  given Extractor[String] with
+    def extract(config: Config, path: String): String =
+      config.getString(path)
+}
+```
+
+Alternate Syntax
+```scala 3
+object Extractor {
+  given Extractor[String] =
+    (config, path) => config.getString(path)
+}
+```
+
+Note: Alternate Syntax - SAM -- Single Abstract Method
 
 ---
 
@@ -239,7 +312,7 @@ object Extractor {
 
 ```scala 3
 extension (config: Config)
-  ...
+  . . .
   
   def getOrElse[T: Extractor](path: String, default: T): T =
     get[Option[T]](path).getOrElse(default)
@@ -247,20 +320,28 @@ extension (config: Config)
 
 ---
 
-### Collecting errors
+### Another Example: Maps
 
 ```scala 3
-extension (config: Config)
-  def get[T: Extractor](path: String): Either[Throwable, T] =
-    try {
-      val ex = implicitly[Extractor[T]]
-      Right(ex.extract(config, path))
-    } catch {
-      case throwable: Throwable => Left(throwable)
-    }
-
-  def getOrElse[T: Extractor]
-    (path: String, default: T): Either[Throwable, T] =
-    
-    get[Option[T]](path).map(_.getOrElse(default))
+rest-services {
+  service-a {
+    host = "somerestapi.com"
+    port = 9000
+  }
+  service-b {
+    host = "anotherrestapi.com"
+    port = 7777
+  }
+}
 ```
+
+Desired semantics
+```scala 3
+val configMap = config.get[Map[String, RestConfig]](path)
+```
+---
+
+
+---
+
+### Questions ?
